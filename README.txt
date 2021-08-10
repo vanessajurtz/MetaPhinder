@@ -2,7 +2,7 @@ MetaPhinder
 
 MetaPhinder classifies metagenomic contigs as of phage origin or not based on a
 comparison to a phage database.
-The script relies on BLAST which must be installed on you machine prior to running
+The script relies on BLAST which must be installed on your machine prior to running
 MetaPhinder.
 The input to MetaPhinder is a FASTA file of metagenomic contigs.
 

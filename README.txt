@@ -8,11 +8,11 @@ The input to MetaPhinder is a FASTA file of metagenomic contigs.
 
 Here is an example of how to run MetaPhinder:
 
-python MetaPhinder.py -i infile.fsa -o output.txt -d database -b path_to_blast
+python MetaPhinder.py -i infile.fsa -d database -b path_to_blast
 
 OPTIONS:
 
 -i inputfile in FASTA format
--o output file (text file)
+-o path to output directory
 -d location of MetaPhinders database
 -b location of your local BLAST installation 

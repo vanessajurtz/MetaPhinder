@@ -19,22 +19,22 @@ cd MetaPhinder
 The following dependecies are required to run MetaPhinder:
 
 * BLAST
-* Python 2.7
-* numpy
+* Python3
+* biopython
 
 The easiest way of obtaining the necessary dependencies is through Anaconda.
 
 To create a conda environment in the current directory (*preferred*):
 
 ```
-conda create --prefix ./env -c bioconda python=2.7 blast numpy
+conda create --prefix ./env -c bioconda python=3.9 blast biopython
 conda activate ./env
 ```
 
 Alternatively, you can create the environment in your `$HOME`:
 
 ```
-conda create --name MetaPhinder -c bioconda python=2.7 blast numpy
+conda create --name MetaPhinder -c bioconda python=3.9 blast biopython
 conda activate MetaPhinder
 ```
 
@@ -106,3 +106,11 @@ The columns of the output file are:
 * `size[bp]`: Query sequence length
 
 *Note*: only contigs of length >500 are classified
+
+# Testing
+
+MetaPhinder uses pytest to ensure that it works as intended. To run the test suite, there are more dependencies. They can be installed with:
+
+```
+python3 -m pip install pylint flake8==3.9.2 pytest-flake8 pylint pytest-pylint
+```

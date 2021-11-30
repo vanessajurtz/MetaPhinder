@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
+"""
+MetaPhinder
+Purpose: Classify metagenomic contigs as phage or not
+"""
 
 from __future__ import division
 import argparse
 import sys
 import os
+
+# pylint: disable=unspecified-encoding,consider-using-enumerate
+# pylint: disable=too-many-branches
 
 
 # ----------------------------------------------------------------------------
@@ -38,7 +45,7 @@ def get_args():
                         type=str,
                         help="Path to BLAST installation",
                         required=True)
-    
+
     return parser.parse_args()
 
 
@@ -50,22 +57,22 @@ def get_contig_size(contigfile):
     size = {}
     s = -1
 
-    for l in contigfile:
-        l = l.strip()
-        if l[0] == ">":
+    for line in contigfile:
+        line = line.strip()
+        if line[0] == ">":
 
             # save size of previous contig:
             if s != -1:
                 size[contigID[-1]] = s
                 s = 0
             # save ID of new contig:
-            l = l.split(" ")
-            contigID.append(l[0].strip(">"))
+            line = line.split(" ")
+            contigID.append(line[0].strip(">"))
         else:
             # count bases
             if s == -1:
                 s = 0
-            s = s + len(l)
+            s = s + len(line)
     contigfile.close()
 
     # save size of last contig:
@@ -135,7 +142,7 @@ def main():
     contigfile = args.infile
 
     # save outfile:
-    if args.outpath != None:
+    if args.outpath is not None:
         if args.outpath[-1] != "/":
             outPath = args.outpath + "/"
         else:
@@ -145,14 +152,14 @@ def main():
         outPath = ""
 
     # save databasepath:
-    if args.database != None:
+    if args.database is not None:
         blastDB = args.database
     else:
         sys.stderr.write("Please specify path to database!\n")
         sys.exit(2)
 
     # save path to nnlinplayer:
-    if args.blast != None:
+    if args.blast is not None:
         if args.blast[-1] != "/":
             blastPath = args.blast + "/"
         else:
@@ -160,15 +167,15 @@ def main():
     else:
         blastPath = ""
 
-    ################################################################################
+    ##########################################################################
     #   GET CONTIG LENGTH
-    ################################################################################
+    ##########################################################################
 
     contigID, size = get_contig_size(contigfile)
 
-    ################################################################################
+    ##########################################################################
     #   RUN BLAST
-    ################################################################################
+    ##########################################################################
 
     print("running BLAST...")
 
@@ -176,13 +183,13 @@ def main():
               " -task blastn -evalue 0.05 -outfmt 7  -num_threads 4 -db " +
               blastDB + " -out " + outPath + "blast.out")
 
-    ################################################################################
+    ##########################################################################
     #   PARSE BLAST OUTPUT
-    ################################################################################
+    ##########################################################################
 
     print("calculating ANI...")
 
-    res = {}  #results
+    res = {}  # results
     p_id = []  # percent identity
     aln_l = []  # alignment length
     positions = []  # start and stop positions in alignment
@@ -196,21 +203,22 @@ def main():
 
     infile = open(outPath + "blast.out", "r")
 
-    for l in infile:
-        l = l.strip()
+    for line in infile:
+        line = line.strip()
 
-        if l[0] != "#":
-            l = l.split("\t")
+        if line[0] != "#":
+            line = line.split("\t")
 
-            if (old_id != str(l[0])) and (old_id != ""):
+            if (old_id != str(line[0])) and (old_id != ""):
 
-                # calc average %ID, relative merged coverage and genomewide %ID:
+                # calc average %ID, relative merged coverage
+                # and genomewide %ID:
                 a_id = calc_a_id(p_id, aln_l)
                 rel_mcov = calc_rel_mcov(positions, size[old_id])
 
                 g_id = a_id * rel_mcov
 
-                #save result:
+                # save result:
                 res[old_id] = str(round(g_id * 100, 3)) + "\t" + str(
                     round(rel_mcov * 100, 3)) + "\t" + str(n_s_id)
 
@@ -218,27 +226,27 @@ def main():
                 p_id = []
                 aln_l = []
                 positions = []
-                old_id = str(l[0])
+                old_id = str(line[0])
                 count = count + 1
                 s_id = ''
                 n_s_id = 0
 
-            #check for evalue:
-            if float(l[10]) <= evalue:
+            # check for evalue:
+            if float(line[10]) <= evalue:
                 # save output:
-                if s_id != l[1]:
-                    s_id = l[1]
+                if s_id != line[1]:
+                    s_id = line[1]
                     n_s_id = n_s_id + 1
 
-                p_id.append(float(l[2]))
-                aln_l.append(int(l[3]))
-                if int(l[6]) < int(l[7]):
-                    positions.append((int(l[6]), int(l[7])))
+                p_id.append(float(line[2]))
+                aln_l.append(int(line[3]))
+                if int(line[6]) < int(line[7]):
+                    positions.append((int(line[6]), int(line[7])))
                 else:
-                    positions.append((int(l[7]), int(l[6])))
-                old_id = str(l[0])
+                    positions.append((int(line[7]), int(line[6])))
+                old_id = str(line[0])
 
-    if (old_id != str(l[0])) and (old_id != ""):
+    if (old_id != str(line[0])) and (old_id != ""):
 
         # calc average %ID, relative merged coverage and genomewide %ID:
         a_id = calc_a_id(p_id, aln_l)
@@ -246,20 +254,21 @@ def main():
 
         g_id = a_id * rel_mcov
 
-        #save result:
+        # save result:
         res[old_id] = str(round(g_id * 100, 3)) + "\t" + str(
             round(rel_mcov * 100, 3)) + "\t" + str(n_s_id)
 
-    ################################################################################
+    ##########################################################################
     #   PRINT RESULTS
-    ################################################################################
+    ##########################################################################
 
     print("preparing output...")
 
     outfile = open(outPath + "output.txt", "w")
 
     outfile.write(
-        "#contigID\tclassification\tANI [%]\tmerged coverage [%]\tnumber of hits\tsize[bp]\n"
+        "#contigID\tclassification\tANI [%]\t"
+        "merged coverage [%]\tnumber of hits\tsize[bp]\n"
     )
 
     threshold = 1.7
@@ -269,7 +278,8 @@ def main():
         if int(size[i]) < 500:
             outfile.write(
                 i +
-                "\tnot processed\tnot processed\tnot processed\tnot processed\t"
+                "\tnot processed\tnot processed\t" +
+                "not processed\tnot processed\t"
                 + str(size[i]) + "\n")
         elif i in res:
             ani = float(res[i].split("\t")[0])

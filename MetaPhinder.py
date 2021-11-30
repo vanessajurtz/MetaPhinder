@@ -132,13 +132,7 @@ def main():
     print("parsing commandline options...")
 
     args = get_args()
-
-    # open input file:
-    if args.infile != None:
-        contigfile = args.infile
-    else:
-        sys.stderr.write("Please specify inputfile!\n")
-        sys.exit(2)
+    contigfile = args.infile
 
     # save outfile:
     if args.outpath != None:

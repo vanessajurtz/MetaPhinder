@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from __future__ import division
-from optparse import OptionParser
+import argparse
 import sys
 import os
 
@@ -10,23 +10,35 @@ import os
 def get_args():
     """ Parse command line arguments"""
 
-    parser = OptionParser()
-    parser.add_option('-i',
-                      '--infile',
-                      dest="infile",
-                      help="contigs FASTA file format")
-    parser.add_option('-o',
-                      '--outpath',
-                      dest="outpath",
-                      help="path to output file(s)")
-    parser.add_option('-d',
-                      '--database',
-                      dest="database",
-                      help="MetaPhinder database")
-    parser.add_option('-b',
-                      '--blast',
-                      dest="blast",
-                      help="path to BLAST installation")
+    parser = argparse.ArgumentParser(
+        description='Classify metagenomic contigs as phage or not',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument('-i',
+                        '--infile',
+                        metavar='FILE',
+                        type=argparse.FileType('rt'),
+                        help="Input FASTA file",
+                        required=True)
+    parser.add_argument('-o',
+                        '--outpath',
+                        metavar='DIR',
+                        type=str,
+                        help="Path to output file(s)",
+                        default='.')
+    parser.add_argument('-d',
+                        '--database',
+                        metavar='DB',
+                        type=str,
+                        help="MetaPhinder database",
+                        required=True)
+    parser.add_argument('-b',
+                        '--blast',
+                        metavar='BLAST',
+                        type=str,
+                        help="Path to BLAST installation",
+                        required=True)
+    
     return parser.parse_args()
 
 
@@ -34,14 +46,11 @@ def get_args():
 def get_contig_size(contigfile):
     """ Calculate contig lengths """
 
-    # open inputfile (contigs in FASTA format):
-    infile = open(contigfile, "r")
-
     contigID = []
     size = {}
     s = -1
 
-    for l in infile:
+    for l in contigfile:
         l = l.strip()
         if l[0] == ">":
 
@@ -57,7 +66,7 @@ def get_contig_size(contigfile):
             if s == -1:
                 s = 0
             s = s + len(l)
-    infile.close()
+    contigfile.close()
 
     # save size of last contig:
     if s == -1:
@@ -115,44 +124,45 @@ def calc_rel_mcov(positions, gsize):
 
     return rel_mcov
 
+
 # ----------------------------------------------------------------------------
 def main():
     """ Main function """
 
     print("parsing commandline options...")
 
-    (options, args) = get_args()
+    args = get_args()
 
     # open input file:
-    if options.infile != None:
-        contigfile = options.infile
+    if args.infile != None:
+        contigfile = args.infile
     else:
         sys.stderr.write("Please specify inputfile!\n")
         sys.exit(2)
 
     # save outfile:
-    if options.outpath != None:
-        if options.outpath[-1] != "/":
-            outPath = options.outpath + "/"
+    if args.outpath != None:
+        if args.outpath[-1] != "/":
+            outPath = args.outpath + "/"
         else:
-            outPath = options.outpath
+            outPath = args.outpath
 
     else:
         outPath = ""
 
     # save databasepath:
-    if options.database != None:
-        blastDB = options.database
+    if args.database != None:
+        blastDB = args.database
     else:
         sys.stderr.write("Please specify path to database!\n")
         sys.exit(2)
 
     # save path to nnlinplayer:
-    if options.blast != None:
-        if options.blast[-1] != "/":
-            blastPath = options.blast + "/"
+    if args.blast != None:
+        if args.blast[-1] != "/":
+            blastPath = args.blast + "/"
         else:
-            blastPath = options.blast
+            blastPath = args.blast
     else:
         blastPath = ""
 
@@ -168,7 +178,7 @@ def main():
 
     print("running BLAST...")
 
-    os.system(blastPath + "blastn -query " + contigfile +
+    os.system(blastPath + "blastn -query " + contigfile.name +
               " -task blastn -evalue 0.05 -outfmt 7  -num_threads 4 -db " +
               blastDB + " -out " + outPath + "blast.out")
 

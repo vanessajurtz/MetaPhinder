@@ -1,14 +1,34 @@
 #!/usr/bin/env python3
 
 from __future__ import division
-
 from optparse import OptionParser
 import sys
 import os
 
-##########################################################################
-#   SUBROUTINES
-##########################################################################
+
+# ----------------------------------------------------------------------------
+def get_args():
+    """ Parse command line arguments"""
+
+    parser = OptionParser()
+    parser.add_option('-i',
+                      '--infile',
+                      dest="infile",
+                      help="contigs FASTA file format")
+    parser.add_option('-o',
+                      '--outpath',
+                      dest="outpath",
+                      help="path to output file(s)")
+    parser.add_option('-d',
+                      '--database',
+                      dest="database",
+                      help="MetaPhinder database")
+    parser.add_option('-b',
+                      '--blast',
+                      dest="blast",
+                      help="path to BLAST installation")
+    return parser.parse_args()
+
 
 # ----------------------------------------------------------------------------
 def get_contig_size(contigfile):
@@ -99,30 +119,9 @@ def calc_rel_mcov(positions, gsize):
 def main():
     """ Main function """
 
-    ################################################################################
-    #       PARSE COMMANDLINE OPTIONS
-    ################################################################################
-
-    parser = OptionParser()
-    parser.add_option('-i',
-                      '--infile',
-                      dest="infile",
-                      help="contigs FASTA file format")
-    parser.add_option('-o',
-                      '--outpath',
-                      dest="outpath",
-                      help="path to output file(s)")
-    parser.add_option('-d',
-                      '--database',
-                      dest="database",
-                      help="MetaPhinder database")
-    parser.add_option('-b',
-                      '--blast',
-                      dest="blast",
-                      help="path to BLAST installation")
-    (options, args) = parser.parse_args()
-
     print("parsing commandline options...")
+
+    (options, args) = get_args()
 
     # open input file:
     if options.infile != None:

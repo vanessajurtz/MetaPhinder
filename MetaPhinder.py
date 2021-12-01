@@ -7,8 +7,9 @@ Purpose: Classify metagenomic contigs as phage or not
 from __future__ import division
 from Bio import SeqIO
 import argparse
-import sys
+import numpy as np
 import os
+import sys
 
 # pylint: disable=unspecified-encoding,consider-using-enumerate
 # pylint: disable=too-many-branches
@@ -105,30 +106,21 @@ def test_calc_a_id() -> None:
 def calc_rel_mcov(positions, gsize):
     """ Genome-wide % Identity """
 
-    # calculate merged coverage:
-    mcov = 0
     rel_mcov = 0
+    coverages = [(0, 0)]
 
-    if len(positions) > 1:
-        spos = sorted(positions, key=lambda firstp: firstp[0])
+    for (start, end) in positions:
+        overlapping = [
+            cov_start <= start <= cov_end for (cov_start, cov_end) in coverages
+        ]
+        if any(overlapping):
+            i = int(np.where(overlapping)[0])
+            (cov_start, cov_end) = coverages[i]
+            coverages[i] = (cov_start, max(end, cov_end))
+        else:
+            coverages.append((start, end))
 
-        start = spos[0][0]
-        end = spos[0][1]
-        for i in range(0, (len(spos) - 1)):
-            if spos[i + 1][0] > end:
-                mcov += end - (start - 1)
-                start = spos[i + 1][0]
-                end = spos[i + 1][1]
-            else:
-                if spos[i + 1][1] > end:
-                    end = spos[i + 1][1]
-
-        mcov += end - (start - 1)
-    # only one hit:
-    elif len(positions) == 1:
-        mcov = positions[0][1] - (positions[0][0] - 1)
-
-    rel_mcov = float(mcov) / gsize
+    rel_mcov = sum([end - (start - 1) for start, end in coverages[1:]]) / gsize
 
     return rel_mcov
 
@@ -139,16 +131,19 @@ def test_calc_rel_mcov() -> None:
 
     # No coverage returns 0
     assert calc_rel_mcov([], 1000) == 0.
-    
+
     # 100% coverage returns 1.0
     assert calc_rel_mcov([(1, 1000)], 1000) == 1.
     assert calc_rel_mcov([(1, 500), (501, 1000)], 1000) == 1.
-    
+
     # Other spot checks
     assert calc_rel_mcov([(1, 500)], 1000) == 0.5
     assert calc_rel_mcov([(501, 1000)], 1000) == 0.5
+    assert calc_rel_mcov([(1, 500), (250, 750)], 1000) == 0.75
     assert calc_rel_mcov([(1, 500), (501, 750)], 1000) == 0.75
+    assert calc_rel_mcov([(501, 750), (1, 500)], 1000) == 0.75
     assert calc_rel_mcov([(1, 500), (250, 525), (501, 750)], 1000) == 0.75
+
 
 # ----------------------------------------------------------------------------
 def main():

@@ -51,25 +51,25 @@ A help menu can be accessed with the `-h/--help` flag:
 
 ```
 $ ./MetaPhinder.py --help
-Usage: MetaPhinder.py [options]
+usage: MetaPhinder.py [-h] -i FILE -d DB -b BLAST [-o DIR]
 
-Options:
+Classify metagenomic contigs as phage or not
+
+optional arguments:
   -h, --help            show this help message and exit
-  -i INFILE, --infile=INFILE
-                        contigs FASTA file format
-  -o OUTPATH, --outpath=OUTPATH
-                        path to output file(s)
-  -d DATABASE, --database=DATABASE
-                        MetaPhinder database
-  -b BLAST, --blast=BLAST
-                        path to BLAST installation
+  -i FILE, --infile FILE
+                        Input FASTA file (default: None)
+  -d DB, --database DB  MetaPhinder database (default: None)
+  -b BLAST, --blast BLAST
+                        Path to BLAST installation (default: None)
+  -o DIR, --outpath DIR
+                        Path to output file(s) (default: .)
 ```
 
 Running MetaPhinder on example data:
 
 ```
 $ ./MetaPhinder.py -i phage_genomes/phages_1_hr.fsa -d database/ALL_140821_hr -b ./env/bin
-parsing commandline options...
 running BLAST...
 calculating ANI...
 preparing output...

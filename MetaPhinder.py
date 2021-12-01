@@ -71,12 +71,13 @@ def get_contig_size(contig_file):
 
 
 # ----------------------------------------------------------------------------
-def calc_a_id(p_id, aln_l):
+def calc_align_id(percent_ids, align_lengths):
     """ Calculate AID """
 
-    total_alignment = sum(aln_l)
+    total_alignment = sum(align_lengths)
 
-    alignment_id = sum([id * align for id, align in zip(p_id, aln_l)])
+    alignment_id = sum(
+        [id * align for id, align in zip(percent_ids, align_lengths)])
 
     if total_alignment > 0 and alignment_id > 0:
         alignment_id = (alignment_id / total_alignment) / 100
@@ -85,22 +86,22 @@ def calc_a_id(p_id, aln_l):
 
 
 # ----------------------------------------------------------------------------
-def test_calc_a_id() -> None:
+def test_calc_align_id() -> None:
     """ Test AID calculation function """
 
     # Zero alignment or identity result in 0% AID
-    assert calc_a_id([0], [0]) == 0.
-    assert calc_a_id([100], [0]) == 0.
-    assert calc_a_id([0], [100]) == 0.
-    assert calc_a_id([0, 0, 0], [0, 0, 0]) == 0.
+    assert calc_align_id([0], [0]) == 0.
+    assert calc_align_id([100], [0]) == 0.
+    assert calc_align_id([0], [100]) == 0.
+    assert calc_align_id([0, 0, 0], [0, 0, 0]) == 0.
 
     # 100% identity results in 100% AID
-    assert calc_a_id([100], [65]) == 1.
-    assert calc_a_id([100, 100, 100], [57, 75, 87]) == 1.
+    assert calc_align_id([100], [65]) == 1.
+    assert calc_align_id([100, 100, 100], [57, 75, 87]) == 1.
 
     # Spot check equation
-    assert calc_a_id([100, 75, 25], [100, 50, 50]) == 0.75
-    assert calc_a_id([100, 25, 25], [1000, 1000, 1000]) == 0.5
+    assert calc_align_id([100, 75, 25], [100, 50, 50]) == 0.75
+    assert calc_align_id([100, 25, 25], [1000, 1000, 1000]) == 0.5
 
 
 # ----------------------------------------------------------------------------
@@ -170,57 +171,52 @@ def main():
     print("calculating ANI...")
 
     res = {}  # results
-    p_id = []  # percent identity
-    aln_l = []  # alignment length
-    positions = []  # start and stop positions in alignment
+    align_num = 0
 
-    old_id = ''
-    # s_id = ''  # subject ID
-    n_s_id = 0  # count hits in DB
-    count = 0
+    e_thresh = 0.05
+    ani_thresh = 1.7
 
-    evalue = 0.05
+    # Iterate through each query in BLAST output
+    for query in NCBIXML.parse(open(blast_out, 'rt')):
 
-    for record in NCBIXML.parse(open(blast_out, 'rt')):
-        for align_num, alignment in enumerate(record.alignments, start = 1):
+        percent_ids = []
+        align_lengths = []
+        positions = []
+
+        # Iterate through each alignment in query
+        for align_num, alignment in enumerate(query.alignments, start=1):
+
+            # Only first alignment retains original record ID
             if align_num == 1:
-                s_id = alignment.title.split(" ")[0]
+                query_id = alignment.title.split(" ")[0]
+
+            # Check that alignment is below e-value threshold, and gather stats
             for hsp in alignment.hsps:
-                if hsp.expect <= evalue:
-                    identity = (hsp.positives / hsp.align_length) * 100
-                    n_s_id += 1
-                    p_id.append(identity)
-                    aln_l.append(hsp.align_length)
+                if hsp.expect <= e_thresh:
+                    align_length = hsp.align_length
+                    align_lengths.append(align_length)
 
-                    if hsp.query_start < hsp.query_end:
-                        positions.append((hsp.query_start, hsp.query_end))
-                    else:
-                        positions.append((hsp.query_end, hsp.query_start))
+                    identity = (hsp.positives / align_length) * 100
+                    percent_ids.append(identity)
 
-        a_id = calc_a_id(p_id, aln_l)
-        rel_mcov = calc_rel_mcov(positions, size[s_id])
+                    start = hsp.query_start
+                    end = hsp.query_end
+                    positions.append((min(start, end), max(start, end)))
 
-        g_id = a_id * rel_mcov
+        align_id = calc_align_id(percent_ids, align_lengths)
+        rel_mcov = calc_rel_mcov(positions, size[query_id])
+
+        g_id = align_id * rel_mcov
 
         # save result:
-        res[s_id] = str(round(g_id * 100, 3)) + "\t" + str(
-            round(rel_mcov * 100, 3)) + "\t" + str(n_s_id)
-
-        # reset variables:
-        p_id = []
-        aln_l = []
-        positions = []
-        count = count + 1
-        # s_id = ''
-        n_s_id = 0
+        res[query_id] = str(round(g_id * 100, 3)) + "\t" + str(
+            round(rel_mcov * 100, 3)) + "\t" + str(align_num)
 
     out_file_name = os.path.join(out_path, 'output.txt')
     out_file = open(out_file_name, "w")
 
     out_file.write("#contig_ids\tclassification\tANI [%]\t"
                    "merged coverage [%]\tnumber of hits\tsize[bp]\n")
-
-    threshold = 1.7
 
     for i in contig_ids:
 
@@ -230,7 +226,7 @@ def main():
                            "\n")
         elif i in res:
             ani = float(res[i].split("\t")[0])
-            if ani > threshold:
+            if ani > ani_thresh:
                 out_file.write(i + "\tphage\t" + res[i] + "\t" + str(size[i]) +
                                "\n")
             else:

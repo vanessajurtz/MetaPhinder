@@ -5,6 +5,7 @@ Purpose: Classify metagenomic contigs as phage or not
 """
 
 from __future__ import division
+from Bio import SeqIO
 import argparse
 import sys
 import os
@@ -22,7 +23,7 @@ def get_args():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('-i',
-                        '--in_file',
+                        '--infile',
                         metavar='FILE',
                         type=argparse.FileType('rt'),
                         help="Input FASTA file",
@@ -40,7 +41,7 @@ def get_args():
                         help="Path to BLAST installation",
                         required=True)
     parser.add_argument('-o',
-                        '--out_path',
+                        '--outpath',
                         metavar='DIR',
                         type=str,
                         help="Path to output file(s)",
@@ -55,32 +56,14 @@ def get_contig_size(contig_file):
 
     contig_ids = []
     size = {}
-    s = -1
 
-    for line in contig_file:
-        line = line.strip()
-        if line[0] == ">":
+    for rec in SeqIO.parse(contig_file, 'fasta'):
+        contig_ids.append(rec.id)
+        size[rec.id] = len(rec.seq)
 
-            # save size of previous contig:
-            if s != -1:
-                size[contig_ids[-1]] = s
-                s = 0
-            # save ID of new contig:
-            line = line.split(" ")
-            contig_ids.append(line[0].strip(">"))
-        else:
-            # count bases
-            if s == -1:
-                s = 0
-            s = s + len(line)
-    contig_file.close()
-
-    # save size of last contig:
-    if s == -1:
+    if len(contig_ids) == 0:
         sys.stderr.write("No contigs found! Problem with FASTA file format\n")
         sys.exit(2)
-    else:
-        size[contig_ids[-1]] = s
 
     return contig_ids, size
 
@@ -137,10 +120,10 @@ def main():
     """ Main function """
 
     args = get_args()
-    contig_file = args.in_file
+    contig_file = args.infile
     blast_db = args.database
     blast_path = args.blast
-    out_path = args.out_path
+    out_path = args.outpath
 
     contig_ids, size = get_contig_size(contig_file)
 
@@ -152,7 +135,6 @@ def main():
     os.system(f"{blast} -query {contig_file.name} -task blastn " +
               f"-evalue 0.05 -outfmt 7 -num_threads 4 -db {blast_db} " +
               f"-out {blast_out}")
-
 
     print("calculating ANI...")
 
@@ -225,35 +207,30 @@ def main():
         res[old_id] = str(round(g_id * 100, 3)) + "\t" + str(
             round(rel_mcov * 100, 3)) + "\t" + str(n_s_id)
 
-
     print("preparing output...")
 
     out_file_name = os.path.join(out_path, 'output.txt')
     out_file = open(out_file_name, "w")
 
-    out_file.write(
-        "#contig_ids\tclassification\tANI [%]\t"
-        "merged coverage [%]\tnumber of hits\tsize[bp]\n"
-    )
+    out_file.write("#contig_ids\tclassification\tANI [%]\t"
+                   "merged coverage [%]\tnumber of hits\tsize[bp]\n")
 
     threshold = 1.7
 
     for i in contig_ids:
 
         if int(size[i]) < 500:
-            out_file.write(
-                i +
-                "\tnot processed\tnot processed\t" +
-                "not processed\tnot processed\t"
-                + str(size[i]) + "\n")
+            out_file.write(i + "\tnot processed\tnot processed\t" +
+                           "not processed\tnot processed\t" + str(size[i]) +
+                           "\n")
         elif i in res:
             ani = float(res[i].split("\t")[0])
             if ani > threshold:
                 out_file.write(i + "\tphage\t" + res[i] + "\t" + str(size[i]) +
-                              "\n")
+                               "\n")
             else:
                 out_file.write(i + "\tnegative\t" + res[i] + "\t" +
-                              str(size[i]) + "\n")
+                               str(size[i]) + "\n")
         else:
             out_file.write(i + "\tnegative\t0\t0\t0\t" + str(size[i]) + "\n")
     out_file.close()

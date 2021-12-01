@@ -5,8 +5,10 @@ Purpose: Classify metagenomic contigs as phage or not
 """
 
 from __future__ import division
+from typing import NamedTuple
 from Bio import SeqIO
 from Bio.Blast import NCBIXML
+from typing import Dict, NamedTuple
 import argparse
 import numpy as np
 import os
@@ -14,6 +16,15 @@ import sys
 
 # pylint: disable=unspecified-encoding,consider-using-enumerate
 # pylint: disable=too-many-branches
+
+
+# ----------------------------------------------------------------------------
+class ani_results(NamedTuple):
+    """ Results from classification by ANI% """
+    ani: float
+    coverage: float
+    hits: int
+    classification: str
 
 
 # ----------------------------------------------------------------------------
@@ -149,7 +160,7 @@ def test_calc_rel_mcov() -> None:
 def calc_ani(blast_out, size):
     """ Calculate ANI from BLAST results"""
 
-    res = {}  # results
+    results: Dict[ani_results] = {}  # results
     align_num = 0
 
     e_thresh = 0.05
@@ -184,13 +195,17 @@ def calc_ani(blast_out, size):
         align_id = calc_align_id(percent_ids, align_lengths)
         rel_mcov = calc_rel_mcov(positions, size[query_id])
 
-        ani = align_id * rel_mcov
+        ani = align_id * rel_mcov * 100
 
-        # save result:
-        res[query_id] = str(round(ani * 100, 3)) + "\t" + str(
-            round(rel_mcov * 100, 3)) + "\t" + str(align_num)
+        ani_thresh = 1.7
 
-    return res
+        classification = "phage" if ani > ani_thresh else "negative"
+
+        results[query_id] = ani_results(round(ani, 3),
+                                        round(rel_mcov * 100, 3), align_num,
+                                        classification)
+
+    return results
 
 
 # ----------------------------------------------------------------------------
@@ -218,8 +233,6 @@ def main():
 
     res = calc_ani(blast_out, sizes)
 
-    ani_thresh = 1.7
-
     out_file_name = os.path.join(out_path, 'output.txt')
     out_file = open(out_file_name, "w")
 
@@ -232,12 +245,13 @@ def main():
             out_str = (f'{contig_id}\tnot processed\tnot processed\t'
                        f'not processed\tnot processed\t{str(size)}\n')
         elif contig_id in res:
-            ani = float(res[contig_id].split("\t")[0])
+            ani = res[contig_id].ani
+            coverage = res[contig_id].coverage
+            hits = res[contig_id].hits
+            classification = res[contig_id].classification
 
-            classification = "phage" if ani > ani_thresh else "negative"
-
-            out_str = (f'{contig_id}\t{classification}\t' +
-                       f'{res[contig_id]}\t{str(size)}\n')
+            out_str = (f'{contig_id}\t{classification}\t{ani}\t' +
+                       f'{coverage}\t{hits}\t{str(size)}\n')
         else:
             out_str = (f'{contig_id}\tnegative\t0\t0\t0\t{str(size)}\n')
 

@@ -6,6 +6,7 @@ Purpose: Classify metagenomic contigs as phage or not
 
 from __future__ import division
 from Bio import SeqIO
+from Bio.Blast import NCBIXML
 import argparse
 import numpy as np
 import os
@@ -163,7 +164,7 @@ def main():
     blast_out = os.path.join(out_path, 'blast.out')
 
     os.system(f"{blast} -query {contig_file.name} -task blastn " +
-              f"-evalue 0.05 -outfmt 7 -num_threads 4 -db {blast_db} " +
+              f"-evalue 0.05 -outfmt 5 -num_threads 4 -db {blast_db} " +
               f"-out {blast_out}")
 
     print("calculating ANI...")
@@ -174,70 +175,44 @@ def main():
     positions = []  # start and stop positions in alignment
 
     old_id = ''
-    s_id = ''  # subject ID
+    # s_id = ''  # subject ID
     n_s_id = 0  # count hits in DB
     count = 0
 
     evalue = 0.05
 
-    in_file = open(blast_out, "r")
+    for record in NCBIXML.parse(open(blast_out, 'rt')):
+        for align_num, alignment in enumerate(record.alignments, start = 1):
+            if align_num == 1:
+                s_id = alignment.title.split(" ")[0]
+            for hsp in alignment.hsps:
+                if hsp.expect <= evalue:
+                    identity = (hsp.positives / hsp.align_length) * 100
+                    n_s_id += 1
+                    p_id.append(identity)
+                    aln_l.append(hsp.align_length)
 
-    for line in in_file:
-        line = line.strip()
+                    if hsp.query_start < hsp.query_end:
+                        positions.append((hsp.query_start, hsp.query_end))
+                    else:
+                        positions.append((hsp.query_end, hsp.query_start))
 
-        if line[0] != "#":
-            line = line.split("\t")
-
-            if (old_id != str(line[0])) and (old_id != ""):
-
-                # calc average %ID, relative merged coverage
-                # and genomewide %ID:
-                a_id = calc_a_id(p_id, aln_l)
-                rel_mcov = calc_rel_mcov(positions, size[old_id])
-
-                g_id = a_id * rel_mcov
-
-                # save result:
-                res[old_id] = str(round(g_id * 100, 3)) + "\t" + str(
-                    round(rel_mcov * 100, 3)) + "\t" + str(n_s_id)
-
-                # reset variables:
-                p_id = []
-                aln_l = []
-                positions = []
-                old_id = str(line[0])
-                count = count + 1
-                s_id = ''
-                n_s_id = 0
-
-            # check for evalue:
-            if float(line[10]) <= evalue:
-                # save output:
-                if s_id != line[1]:
-                    s_id = line[1]
-                    n_s_id = n_s_id + 1
-
-                p_id.append(float(line[2]))
-                aln_l.append(int(line[3]))
-                if int(line[6]) < int(line[7]):
-                    positions.append((int(line[6]), int(line[7])))
-                else:
-                    positions.append((int(line[7]), int(line[6])))
-                old_id = str(line[0])
-
-    if (old_id != str(line[0])) and (old_id != ""):
-
-        # calc average %ID, relative merged coverage and genomewide %ID:
         a_id = calc_a_id(p_id, aln_l)
-        rel_mcov = calc_rel_mcov(positions, size[old_id])
+        rel_mcov = calc_rel_mcov(positions, size[s_id])
 
         g_id = a_id * rel_mcov
 
         # save result:
-        res[old_id] = str(round(g_id * 100, 3)) + "\t" + str(
+        res[s_id] = str(round(g_id * 100, 3)) + "\t" + str(
             round(rel_mcov * 100, 3)) + "\t" + str(n_s_id)
 
-    print("preparing output...")
+        # reset variables:
+        p_id = []
+        aln_l = []
+        positions = []
+        count = count + 1
+        # s_id = ''
+        n_s_id = 0
 
     out_file_name = os.path.join(out_path, 'output.txt')
     out_file = open(out_file_name, "w")

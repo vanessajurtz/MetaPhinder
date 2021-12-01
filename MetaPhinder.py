@@ -56,18 +56,16 @@ def get_args():
 def get_contig_size(contig_file):
     """ Calculate contig lengths """
 
-    contig_ids = []
-    size = {}
+    sizes = {}
 
     for rec in SeqIO.parse(contig_file, 'fasta'):
-        contig_ids.append(rec.id)
-        size[rec.id] = len(rec.seq)
+        sizes[rec.id] = len(rec.seq)
 
-    if len(contig_ids) == 0:
+    if len(sizes) == 0:
         sys.stderr.write("No contigs found! Problem with FASTA file format\n")
         sys.exit(2)
 
-    return contig_ids, size
+    return sizes
 
 
 # ----------------------------------------------------------------------------
@@ -186,10 +184,10 @@ def calc_ani(blast_out, size):
         align_id = calc_align_id(percent_ids, align_lengths)
         rel_mcov = calc_rel_mcov(positions, size[query_id])
 
-        g_id = align_id * rel_mcov
+        ani = align_id * rel_mcov
 
         # save result:
-        res[query_id] = str(round(g_id * 100, 3)) + "\t" + str(
+        res[query_id] = str(round(ani * 100, 3)) + "\t" + str(
             round(rel_mcov * 100, 3)) + "\t" + str(align_num)
 
     return res
@@ -205,7 +203,7 @@ def main():
     blast_path = args.blast
     out_path = args.outpath
 
-    contig_ids, size = get_contig_size(contig_file)
+    sizes = get_contig_size(contig_file)
 
     print("running BLAST...")
 
@@ -218,7 +216,7 @@ def main():
 
     print("calculating ANI...")
 
-    res = calc_ani(blast_out, size)
+    res = calc_ani(blast_out, sizes)
 
     ani_thresh = 1.7
 
@@ -228,22 +226,22 @@ def main():
     out_file.write("#contig_ids\tclassification\tANI [%]\t"
                    "merged coverage [%]\tnumber of hits\tsize[bp]\n")
 
-    for i in contig_ids:
+    for contig_id, size in sizes.items():
 
-        if int(size[i]) < 500:
-            out_file.write(i + "\tnot processed\tnot processed\t" +
-                           "not processed\tnot processed\t" + str(size[i]) +
-                           "\n")
-        elif i in res:
-            ani = float(res[i].split("\t")[0])
-            if ani > ani_thresh:
-                out_file.write(i + "\tphage\t" + res[i] + "\t" + str(size[i]) +
-                               "\n")
-            else:
-                out_file.write(i + "\tnegative\t" + res[i] + "\t" +
-                               str(size[i]) + "\n")
+        if size < 500:
+            out_str = (f'{contig_id}\tnot processed\tnot processed\t'
+                       f'not processed\tnot processed\t{str(size)}\n')
+        elif contig_id in res:
+            ani = float(res[contig_id].split("\t")[0])
+
+            classification = "phage" if ani > ani_thresh else "negative"
+
+            out_str = (f'{contig_id}\t{classification}\t' +
+                       f'{res[contig_id]}\t{str(size)}\n')
         else:
-            out_file.write(i + "\tnegative\t0\t0\t0\t" + str(size[i]) + "\n")
+            out_str = (f'{contig_id}\tnegative\t0\t0\t0\t{str(size)}\n')
+
+        out_file.write(out_str)
     out_file.close()
 
     # for wrapper:

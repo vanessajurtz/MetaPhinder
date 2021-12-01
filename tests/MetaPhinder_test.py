@@ -11,6 +11,7 @@ import string
 PRG = './MetaPhinder.py'
 RUN = 'python3 MetaPhinder.py' if platform.system() == 'Windows' else PRG
 INPUT1 = './tests/inputs/input1.fa'
+INPUT2 = './tests/inputs/input3.fa'
 DB = 'database/ALL_140821_hr'
 BLAST = './env/bin'
 
@@ -104,29 +105,31 @@ def test_runs_ok() -> None:
     """ Runs with good inputs """
 
     out_dir = "out_test"
-    try:
-        if os.path.isdir(out_dir):
-            shutil.rmtree(out_dir)
 
-        os.makedirs(out_dir)
+    for in_file in [INPUT1, INPUT2]:
+        try:
+            if os.path.isdir(out_dir):
+                shutil.rmtree(out_dir)
 
-        rv, out = getstatusoutput(
-            f'{RUN} -i {INPUT1} -b {BLAST} -d {DB} -o {out_dir}')
+            os.makedirs(out_dir)
 
-        assert rv == 0
-        assert re.search("DONE!", out)
-        assert os.path.isdir(out_dir)
-        out_file1 = os.path.join(out_dir, 'blast.out')
-        out_file2 = os.path.join(out_dir, 'output.txt')
-        assert os.path.isfile(out_file1)
-        assert os.path.isfile(out_file2)
+            rv, out = getstatusoutput(
+                f'{RUN} -i {in_file} -b {BLAST} -d {DB} -o {out_dir}')
 
-        num_contigs = open(INPUT1).read().count(">")
-        assert open(out_file2).read().count('\n') == num_contigs + 1
+            assert rv == 0
+            assert re.search("DONE!", out)
+            assert os.path.isdir(out_dir)
+            out_file1 = os.path.join(out_dir, 'blast.out')
+            out_file2 = os.path.join(out_dir, 'output.txt')
+            assert os.path.isfile(out_file1)
+            assert os.path.isfile(out_file2)
 
-    finally:
-        if os.path.isdir(out_dir):
-            shutil.rmtree(out_dir)
+            num_contigs = open(in_file).read().count(">")
+            assert open(out_file2).read().count('\n') == num_contigs + 1
+
+        finally:
+            if os.path.isdir(out_dir):
+                shutil.rmtree(out_dir)
 
 
 # --------------------------------------------------

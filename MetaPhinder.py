@@ -22,7 +22,7 @@ def get_args():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('-i',
-                        '--infile',
+                        '--in_file',
                         metavar='FILE',
                         type=argparse.FileType('rt'),
                         help="Input FASTA file",
@@ -40,7 +40,7 @@ def get_args():
                         help="Path to BLAST installation",
                         required=True)
     parser.add_argument('-o',
-                        '--outpath',
+                        '--out_path',
                         metavar='DIR',
                         type=str,
                         help="Path to output file(s)",
@@ -50,39 +50,39 @@ def get_args():
 
 
 # ----------------------------------------------------------------------------
-def get_contig_size(contigfile):
+def get_contig_size(contig_file):
     """ Calculate contig lengths """
 
-    contigID = []
+    contig_ids = []
     size = {}
     s = -1
 
-    for line in contigfile:
+    for line in contig_file:
         line = line.strip()
         if line[0] == ">":
 
             # save size of previous contig:
             if s != -1:
-                size[contigID[-1]] = s
+                size[contig_ids[-1]] = s
                 s = 0
             # save ID of new contig:
             line = line.split(" ")
-            contigID.append(line[0].strip(">"))
+            contig_ids.append(line[0].strip(">"))
         else:
             # count bases
             if s == -1:
                 s = 0
             s = s + len(line)
-    contigfile.close()
+    contig_file.close()
 
     # save size of last contig:
     if s == -1:
         sys.stderr.write("No contigs found! Problem with FASTA file format\n")
         sys.exit(2)
     else:
-        size[contigID[-1]] = s
+        size[contig_ids[-1]] = s
 
-    return contigID, size
+    return contig_ids, size
 
 
 # ----------------------------------------------------------------------------
@@ -137,33 +137,22 @@ def main():
     """ Main function """
 
     args = get_args()
-    contigfile = args.infile
-    blastDB = args.database
-    blastPath = args.blast
-    outPath = args.outpath
+    contig_file = args.in_file
+    blast_db = args.database
+    blast_path = args.blast
+    out_path = args.out_path
 
-    ##########################################################################
-    #   GET CONTIG LENGTH
-    ##########################################################################
-
-    contigID, size = get_contig_size(contigfile)
-
-    ##########################################################################
-    #   RUN BLAST
-    ##########################################################################
+    contig_ids, size = get_contig_size(contig_file)
 
     print("running BLAST...")
 
-    blast = os.path.join(blastPath, 'blastn')
-    blast_out = os.path.join(outPath, 'blast.out')
+    blast = os.path.join(blast_path, 'blastn')
+    blast_out = os.path.join(out_path, 'blast.out')
 
-    os.system(blast + " -query " + contigfile.name +
-              " -task blastn -evalue 0.05 -outfmt 7  -num_threads 4 -db " +
-              blastDB + " -out " + blast_out)
+    os.system(f"{blast} -query {contig_file.name} -task blastn " +
+              f"-evalue 0.05 -outfmt 7 -num_threads 4 -db {blast_db} " +
+              f"-out {blast_out}")
 
-    ##########################################################################
-    #   PARSE BLAST OUTPUT
-    ##########################################################################
 
     print("calculating ANI...")
 
@@ -179,9 +168,9 @@ def main():
 
     evalue = 0.05
 
-    infile = open(blast_out, "r")
+    in_file = open(blast_out, "r")
 
-    for line in infile:
+    for line in in_file:
         line = line.strip()
 
         if line[0] != "#":
@@ -236,26 +225,23 @@ def main():
         res[old_id] = str(round(g_id * 100, 3)) + "\t" + str(
             round(rel_mcov * 100, 3)) + "\t" + str(n_s_id)
 
-    ##########################################################################
-    #   PRINT RESULTS
-    ##########################################################################
 
     print("preparing output...")
 
-    out_file_name = os.path.join(outPath, 'output.txt')
-    outfile = open(out_file_name, "w")
+    out_file_name = os.path.join(out_path, 'output.txt')
+    out_file = open(out_file_name, "w")
 
-    outfile.write(
-        "#contigID\tclassification\tANI [%]\t"
+    out_file.write(
+        "#contig_ids\tclassification\tANI [%]\t"
         "merged coverage [%]\tnumber of hits\tsize[bp]\n"
     )
 
     threshold = 1.7
 
-    for i in contigID:
+    for i in contig_ids:
 
         if int(size[i]) < 500:
-            outfile.write(
+            out_file.write(
                 i +
                 "\tnot processed\tnot processed\t" +
                 "not processed\tnot processed\t"
@@ -263,14 +249,14 @@ def main():
         elif i in res:
             ani = float(res[i].split("\t")[0])
             if ani > threshold:
-                outfile.write(i + "\tphage\t" + res[i] + "\t" + str(size[i]) +
+                out_file.write(i + "\tphage\t" + res[i] + "\t" + str(size[i]) +
                               "\n")
             else:
-                outfile.write(i + "\tnegative\t" + res[i] + "\t" +
+                out_file.write(i + "\tnegative\t" + res[i] + "\t" +
                               str(size[i]) + "\n")
         else:
-            outfile.write(i + "\tnegative\t0\t0\t0\t" + str(size[i]) + "\n")
-    outfile.close()
+            out_file.write(i + "\tnegative\t0\t0\t0\t" + str(size[i]) + "\n")
+    out_file.close()
 
     # for wrapper:
     sys.stderr.write("DONE!")

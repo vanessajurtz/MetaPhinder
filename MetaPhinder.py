@@ -5,7 +5,6 @@ Purpose: Classify metagenomic contigs as phage or not
 """
 
 from __future__ import division
-from typing import NamedTuple
 from Bio import SeqIO
 from Bio.Blast import NCBIXML
 from typing import Dict, NamedTuple
@@ -21,10 +20,12 @@ import sys
 # ----------------------------------------------------------------------------
 class ani_results(NamedTuple):
     """ Results from classification by ANI% """
+    id: str
     ani: float
     coverage: float
     hits: int
     classification: str
+    size: int
 
 
 # ----------------------------------------------------------------------------
@@ -201,11 +202,57 @@ def calc_ani(blast_out, size):
 
         classification = "phage" if ani > ani_thresh else "negative"
 
-        results[query_id] = ani_results(round(ani, 3),
+        results[query_id] = ani_results(query_id, round(ani, 3),
                                         round(rel_mcov * 100, 3), align_num,
-                                        classification)
+                                        classification, size[query_id])
 
     return results
+
+
+# ----------------------------------------------------------------------------
+def get_out_str(result: ani_results, contig_id: str, size: int) -> str:
+    """ Determine output string for contig """
+
+    out_str = ""
+
+    if int(size) < 500:
+        out_str = (f'{contig_id}\tnot processed\tnot processed\t'
+                   f'not processed\tnot processed\t{str(size)}\n')
+    elif result:
+        ani = result.ani
+        coverage = result.coverage
+        hits = result.hits
+        classification = result.classification
+
+        out_str = (f'{contig_id}\t{classification}\t{ani}\t' +
+                   f'{coverage}\t{hits}\t{str(size)}\n')
+    else:
+        out_str = (f'{contig_id}\tnegative\t0\t0\t0\t{str(size)}\n')
+
+    return out_str
+
+
+# ----------------------------------------------------------------------------
+def test_get_out_str() -> str:
+    """ Test get_out_str() """
+
+    # No hits from BLAST, not present in results dict
+    assert get_out_str(None, 'FOO', '1000') == "FOO\tnegative\t0\t0\t0\t1000\n"
+
+    # Length < 500
+    shorty = ani_results('SMALL', 18.012, 14.012, 3, "positive", 499)
+    exp = ("SMALL\tnot processed\tnot processed\t"
+           "not processed\tnot processed\t499\n")
+    assert get_out_str(shorty, 'SMALL', '499') == exp
+
+    # Predicted phage
+    phage = ani_results('PHAGE', 99.024, 100.0, 4, "phage", 2948)
+    exp = "PHAGE\tphage\t99.024\t100.0\t4\t2948\n"
+    assert get_out_str(phage, 'PHAGE', '2948') == exp
+
+    # Predicted negative
+    foo = ani_results('BACTERIA', 1.699, 22.524, 2, "negative", 3926)
+    exp = "BACTERIA\tnegative\t1.699\t22.524\t2\t3926\n"
 
 
 # ----------------------------------------------------------------------------
@@ -241,19 +288,9 @@ def main():
 
     for contig_id, size in sizes.items():
 
-        if size < 500:
-            out_str = (f'{contig_id}\tnot processed\tnot processed\t'
-                       f'not processed\tnot processed\t{str(size)}\n')
-        elif contig_id in res:
-            ani = res[contig_id].ani
-            coverage = res[contig_id].coverage
-            hits = res[contig_id].hits
-            classification = res[contig_id].classification
+        result = res.get(contig_id)
 
-            out_str = (f'{contig_id}\t{classification}\t{ani}\t' +
-                       f'{coverage}\t{hits}\t{str(size)}\n')
-        else:
-            out_str = (f'{contig_id}\tnegative\t0\t0\t0\t{str(size)}\n')
+        out_str = get_out_str(result, contig_id, size)
 
         out_file.write(out_str)
     out_file.close()

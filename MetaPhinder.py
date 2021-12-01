@@ -138,32 +138,9 @@ def main():
 
     args = get_args()
     contigfile = args.infile
-
-    # save outfile:
-    if args.outpath is not None:
-        if args.outpath[-1] != "/":
-            outPath = args.outpath + "/"
-        else:
-            outPath = args.outpath
-
-    else:
-        outPath = ""
-
-    # save databasepath:
-    if args.database is not None:
-        blastDB = args.database
-    else:
-        sys.stderr.write("Please specify path to database!\n")
-        sys.exit(2)
-
-    # save path to nnlinplayer:
-    if args.blast is not None:
-        if args.blast[-1] != "/":
-            blastPath = args.blast + "/"
-        else:
-            blastPath = args.blast
-    else:
-        blastPath = ""
+    blastDB = args.database
+    blastPath = args.blast
+    outPath = args.outpath
 
     ##########################################################################
     #   GET CONTIG LENGTH
@@ -177,9 +154,12 @@ def main():
 
     print("running BLAST...")
 
-    os.system(blastPath + "blastn -query " + contigfile.name +
+    blast = os.path.join(blastPath, 'blastn')
+    blast_out = os.path.join(outPath, 'blast.out')
+
+    os.system(blast + " -query " + contigfile.name +
               " -task blastn -evalue 0.05 -outfmt 7  -num_threads 4 -db " +
-              blastDB + " -out " + outPath + "blast.out")
+              blastDB + " -out " + blast_out)
 
     ##########################################################################
     #   PARSE BLAST OUTPUT
@@ -199,7 +179,7 @@ def main():
 
     evalue = 0.05
 
-    infile = open(outPath + "blast.out", "r")
+    infile = open(blast_out, "r")
 
     for line in infile:
         line = line.strip()
@@ -262,7 +242,8 @@ def main():
 
     print("preparing output...")
 
-    outfile = open(outPath + "output.txt", "w")
+    out_file_name = os.path.join(outPath, 'output.txt')
+    outfile = open(out_file_name, "w")
 
     outfile.write(
         "#contigID\tclassification\tANI [%]\t"

@@ -70,32 +70,35 @@ def get_contig_size(contig_file):
 
 # ----------------------------------------------------------------------------
 def calc_a_id(p_id, aln_l):
-    """ Calculate ANI """
+    """ Calculate AID """
 
     total_alignment = sum(aln_l)
-    
+
     alignment_id = sum([id * align for id, align in zip(p_id, aln_l)])
 
-    if (total_alignment > 0 and alignment_id > 0):
+    if total_alignment > 0 and alignment_id > 0:
         alignment_id = (alignment_id / total_alignment) / 100
 
     return alignment_id
 
+
 # ----------------------------------------------------------------------------
 def test_calc_a_id() -> None:
+    """ Test AID calculation function """
 
-    # Zero alignment or identity result in 0% ANI
+    # Zero alignment or identity result in 0% AID
     assert calc_a_id([0], [0]) == 0.
     assert calc_a_id([100], [0]) == 0.
     assert calc_a_id([0], [100]) == 0.
     assert calc_a_id([0, 0, 0], [0, 0, 0]) == 0.
 
-    # 100% identity results in 100% ANE
+    # 100% identity results in 100% AID
     assert calc_a_id([100], [65]) == 1.
     assert calc_a_id([100, 100, 100], [57, 75, 87]) == 1.
 
     # Spot check equation
     assert calc_a_id([100, 75, 25], [100, 50, 50]) == 0.75
+    assert calc_a_id([100, 25, 25], [1000, 1000, 1000]) == 0.5
 
 
 # ----------------------------------------------------------------------------
@@ -129,6 +132,12 @@ def calc_rel_mcov(positions, gsize):
 
     return rel_mcov
 
+
+# ----------------------------------------------------------------------------
+def test_calc_rel_mcov() -> None:
+    """ Test function for calcualting relative merged coverage """
+
+    assert calc_rel_mcov()
 
 # ----------------------------------------------------------------------------
 def main():

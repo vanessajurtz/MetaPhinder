@@ -27,12 +27,6 @@ def get_args():
                         type=argparse.FileType('rt'),
                         help="Input FASTA file",
                         required=True)
-    parser.add_argument('-o',
-                        '--outpath',
-                        metavar='DIR',
-                        type=str,
-                        help="Path to output file(s)",
-                        default='.')
     parser.add_argument('-d',
                         '--database',
                         metavar='DB',
@@ -45,6 +39,12 @@ def get_args():
                         type=str,
                         help="Path to BLAST installation",
                         required=True)
+    parser.add_argument('-o',
+                        '--outpath',
+                        metavar='DIR',
+                        type=str,
+                        help="Path to output file(s)",
+                        default='.')
 
     return parser.parse_args()
 

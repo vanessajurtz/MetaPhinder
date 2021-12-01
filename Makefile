@@ -1,4 +1,4 @@
 .PHONY: test
 
 test:
-	python3 -m pytest -v --flake8 --pylint tests/MetaPhinder_test.py MetaPhinder.py
+	python3 -m pytest -v --flake8 --pylint MetaPhinder.py tests/MetaPhinder_test.py

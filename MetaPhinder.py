@@ -128,7 +128,7 @@ def calc_rel_mcov(positions, gsize):
     elif len(positions) == 1:
         mcov = positions[0][1] - positions[0][0]
 
-    rel_mcov = float(mcov + 1) / gsize
+    rel_mcov = float(mcov) / gsize
 
     return rel_mcov
 
@@ -146,6 +146,7 @@ def test_calc_rel_mcov() -> None:
     
     # Other spot checks
     assert calc_rel_mcov([(1, 500)], 1000) == 0.5
+    assert calc_rel_mcov([(501, 1000)], 1000) == 0.5
     assert calc_rel_mcov([(1, 500), (501, 750), 1000]) == 0.75
     assert calc_rel_mcov([(1, 500), (250, 525), (501, 750), 1000]) == 0.75
 

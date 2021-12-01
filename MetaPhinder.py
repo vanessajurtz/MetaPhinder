@@ -7,7 +7,7 @@ Purpose: Classify metagenomic contigs as phage or not
 from __future__ import division
 from Bio import SeqIO
 from Bio.Blast import NCBIXML
-from typing import Dict, NamedTuple
+from typing import Dict, TextIO, Tuple, List, NamedTuple
 import argparse
 import numpy as np
 import os
@@ -18,7 +18,7 @@ import sys
 
 
 # ----------------------------------------------------------------------------
-class ani_results(NamedTuple):
+class ANI_results(NamedTuple):
     """ Results from classification by ANI% """
     id: str
     ani: float
@@ -29,7 +29,16 @@ class ani_results(NamedTuple):
 
 
 # ----------------------------------------------------------------------------
-def get_args():
+class Args(NamedTuple):
+    """ Command line arguments """
+    infile: TextIO
+    database: str
+    blast: str
+    outpath: str
+
+
+# ----------------------------------------------------------------------------
+def get_args() -> Args:
     """ Parse command line arguments"""
 
     parser = argparse.ArgumentParser(
@@ -61,14 +70,16 @@ def get_args():
                         help="Path to output file(s)",
                         default='.')
 
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    return Args(args.infile, args.database, args.blast, args.outpath)
 
 
 # ----------------------------------------------------------------------------
-def get_contig_size(contig_file):
+def get_contig_size(contig_file: TextIO) -> Dict[str, int]:
     """ Calculate contig lengths """
 
-    sizes = {}
+    sizes: Dict[str, int] = {}
 
     for rec in SeqIO.parse(contig_file, 'fasta'):
         sizes[rec.id] = len(rec.seq)
@@ -81,9 +92,10 @@ def get_contig_size(contig_file):
 
 
 # ----------------------------------------------------------------------------
-def calc_align_id(percent_ids, align_lengths):
+def calc_align_id(percent_ids: List[int], align_lengths: List[int]) -> float:
     """ Calculate AID """
 
+    alignment_id: float = 0.
     total_alignment = sum(align_lengths)
 
     alignment_id = sum(
@@ -115,10 +127,10 @@ def test_calc_align_id() -> None:
 
 
 # ----------------------------------------------------------------------------
-def calc_rel_mcov(positions, gsize):
+def calc_rel_mcov(positions: List[Tuple[int, int]], gsize: int) -> float:
     """ Genome-wide % Identity """
 
-    rel_mcov = 0
+    rel_mcov = 0.
     coverages = [(0, 0)]
 
     for (start, end) in positions:
@@ -158,10 +170,10 @@ def test_calc_rel_mcov() -> None:
 
 
 # ----------------------------------------------------------------------------
-def calc_ani(blast_out, size):
+def calc_ani(blast_out: str, sizes: Dict[str, int]):
     """ Calculate ANI from BLAST results"""
 
-    results: Dict[ani_results] = {}  # results
+    results: Dict[str, ANI_results] = {}  # results
     align_num = 0
 
     e_thresh = 0.05
@@ -194,7 +206,7 @@ def calc_ani(blast_out, size):
                     positions.append((min(start, end), max(start, end)))
 
         align_id = calc_align_id(percent_ids, align_lengths)
-        rel_mcov = calc_rel_mcov(positions, size[query_id])
+        rel_mcov = calc_rel_mcov(positions, sizes[query_id])
 
         ani = align_id * rel_mcov * 100
 
@@ -202,15 +214,15 @@ def calc_ani(blast_out, size):
 
         classification = "phage" if ani > ani_thresh else "negative"
 
-        results[query_id] = ani_results(query_id, round(ani, 3),
+        results[query_id] = ANI_results(query_id, round(ani, 3),
                                         round(rel_mcov * 100, 3), align_num,
-                                        classification, size[query_id])
+                                        classification, sizes[query_id])
 
     return results
 
 
 # ----------------------------------------------------------------------------
-def get_out_str(result: ani_results, contig_id: str, size: int) -> str:
+def get_out_str(result: ANI_results, contig_id: str, size: int) -> str:
     """ Determine output string for contig """
 
     out_str = ""
@@ -233,26 +245,27 @@ def get_out_str(result: ani_results, contig_id: str, size: int) -> str:
 
 
 # ----------------------------------------------------------------------------
-def test_get_out_str() -> str:
+def test_get_out_str():
     """ Test get_out_str() """
 
     # No hits from BLAST, not present in results dict
-    assert get_out_str(None, 'FOO', '1000') == "FOO\tnegative\t0\t0\t0\t1000\n"
+    assert get_out_str(None, 'FOO', 1000) == "FOO\tnegative\t0\t0\t0\t1000\n"
 
     # Length < 500
-    shorty = ani_results('SMALL', 18.012, 14.012, 3, "positive", 499)
+    shorty = ANI_results('SMALL', 18.012, 14.012, 3, "phage", 499)
     exp = ("SMALL\tnot processed\tnot processed\t"
            "not processed\tnot processed\t499\n")
-    assert get_out_str(shorty, 'SMALL', '499') == exp
+    assert get_out_str(shorty, 'SMALL', 499) == exp
 
     # Predicted phage
-    phage = ani_results('PHAGE', 99.024, 100.0, 4, "phage", 2948)
+    phage = ANI_results('PHAGE', 99.024, 100.0, 4, "phage", 2948)
     exp = "PHAGE\tphage\t99.024\t100.0\t4\t2948\n"
-    assert get_out_str(phage, 'PHAGE', '2948') == exp
+    assert get_out_str(phage, 'PHAGE', 2948) == exp
 
     # Predicted negative
-    foo = ani_results('BACTERIA', 1.699, 22.524, 2, "negative", 3926)
+    bacteria = ANI_results('BACTERIA', 1.699, 22.524, 2, "negative", 3926)
     exp = "BACTERIA\tnegative\t1.699\t22.524\t2\t3926\n"
+    assert get_out_str(bacteria, 'BACTERIA', 3926) == exp
 
 
 # ----------------------------------------------------------------------------

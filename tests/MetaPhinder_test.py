@@ -99,6 +99,7 @@ def test_bad_db() -> None:
     assert re.search(f'"{bad}" is not a valid database', out)
 
 
+# --------------------------------------------------
 def test_runs_ok() -> None:
     """ Runs with good inputs """
 

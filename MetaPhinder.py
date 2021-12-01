@@ -128,7 +128,7 @@ def calc_rel_mcov(positions, gsize):
     elif len(positions) == 1:
         mcov = positions[0][1] - positions[0][0]
 
-    rel_mcov = float(mcov) / gsize
+    rel_mcov = float(mcov + 1) / gsize
 
     return rel_mcov
 

@@ -148,33 +148,13 @@ def test_calc_rel_mcov() -> None:
 
 
 # ----------------------------------------------------------------------------
-def main():
-    """ Main function """
-
-    args = get_args()
-    contig_file = args.infile
-    blast_db = args.database
-    blast_path = args.blast
-    out_path = args.outpath
-
-    contig_ids, size = get_contig_size(contig_file)
-
-    print("running BLAST...")
-
-    blast = os.path.join(blast_path, 'blastn')
-    blast_out = os.path.join(out_path, 'blast.out')
-
-    os.system(f"{blast} -query {contig_file.name} -task blastn " +
-              f"-evalue 0.05 -outfmt 5 -num_threads 4 -db {blast_db} " +
-              f"-out {blast_out}")
-
-    print("calculating ANI...")
+def calc_ani(blast_out, size):
+    """ Calculate ANI from BLAST results"""
 
     res = {}  # results
     align_num = 0
 
     e_thresh = 0.05
-    ani_thresh = 1.7
 
     # Iterate through each query in BLAST output
     for query in NCBIXML.parse(open(blast_out, 'rt')):
@@ -211,6 +191,36 @@ def main():
         # save result:
         res[query_id] = str(round(g_id * 100, 3)) + "\t" + str(
             round(rel_mcov * 100, 3)) + "\t" + str(align_num)
+
+    return res
+
+
+# ----------------------------------------------------------------------------
+def main():
+    """ Main function """
+
+    args = get_args()
+    contig_file = args.infile
+    blast_db = args.database
+    blast_path = args.blast
+    out_path = args.outpath
+
+    contig_ids, size = get_contig_size(contig_file)
+
+    print("running BLAST...")
+
+    blast = os.path.join(blast_path, 'blastn')
+    blast_out = os.path.join(out_path, 'blast.out')
+
+    os.system(f"{blast} -query {contig_file.name} -task blastn " +
+              f"-evalue 0.05 -outfmt 5 -num_threads 4 -db {blast_db} " +
+              f"-out {blast_out}")
+
+    print("calculating ANI...")
+
+    res = calc_ani(blast_out, size)
+
+    ani_thresh = 1.7
 
     out_file_name = os.path.join(out_path, 'output.txt')
     out_file = open(out_file_name, "w")

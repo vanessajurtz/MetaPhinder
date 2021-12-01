@@ -137,7 +137,15 @@ def calc_rel_mcov(positions, gsize):
 def test_calc_rel_mcov() -> None:
     """ Test function for calcualting relative merged coverage """
 
-    assert calc_rel_mcov()
+    # No coverage returns 0
+    assert calc_rel_mcov([], 1000) == 0.
+    
+    # 100% coverage returns 1.0
+    assert calc_rel_mcov([(1, 1000)], 1000) == 1.
+    assert calc_rel_mcov([(1, 500), (501, 1000)], 1000) == 1.
+    
+    # Other spot checks
+    assert calc_rel_mcov([(1, 500)], 1000) == 0.5
 
 # ----------------------------------------------------------------------------
 def main():

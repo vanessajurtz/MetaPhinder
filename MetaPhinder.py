@@ -116,17 +116,17 @@ def calc_rel_mcov(positions, gsize):
         end = spos[0][1]
         for i in range(0, (len(spos) - 1)):
             if spos[i + 1][0] > end:
-                mcov += end - start
+                mcov += end - (start - 1)
                 start = spos[i + 1][0]
                 end = spos[i + 1][1]
             else:
                 if spos[i + 1][1] > end:
                     end = spos[i + 1][1]
 
-        mcov += end - start
+        mcov += end - (start - 1)
     # only one hit:
     elif len(positions) == 1:
-        mcov = positions[0][1] - positions[0][0]
+        mcov = positions[0][1] - (positions[0][0] - 1)
 
     rel_mcov = float(mcov) / gsize
 
@@ -147,8 +147,8 @@ def test_calc_rel_mcov() -> None:
     # Other spot checks
     assert calc_rel_mcov([(1, 500)], 1000) == 0.5
     assert calc_rel_mcov([(501, 1000)], 1000) == 0.5
-    assert calc_rel_mcov([(1, 500), (501, 750), 1000]) == 0.75
-    assert calc_rel_mcov([(1, 500), (250, 525), (501, 750), 1000]) == 0.75
+    assert calc_rel_mcov([(1, 500), (501, 750)], 1000) == 0.75
+    assert calc_rel_mcov([(1, 500), (250, 525), (501, 750)], 1000) == 0.75
 
 # ----------------------------------------------------------------------------
 def main():

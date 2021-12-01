@@ -136,8 +136,6 @@ def calc_rel_mcov(positions, gsize):
 def main():
     """ Main function """
 
-    print("parsing commandline options...")
-
     args = get_args()
     contigfile = args.infile
 

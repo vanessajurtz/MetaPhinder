@@ -133,7 +133,7 @@ def calc_rel_mcov(positions: List[Tuple[int, int]], gsize: int) -> float:
     rel_mcov = 0.
     coverages = [(0, 0)]
 
-    for (start, end) in positions:
+    for (start, end) in sorted(positions):
         overlapping = [
             cov_start <= start <= cov_end for (cov_start, cov_end) in coverages
         ]
@@ -167,6 +167,7 @@ def test_calc_rel_mcov() -> None:
     assert calc_rel_mcov([(1, 500), (501, 750)], 1000) == 0.75
     assert calc_rel_mcov([(501, 750), (1, 500)], 1000) == 0.75
     assert calc_rel_mcov([(1, 500), (250, 525), (501, 750)], 1000) == 0.75
+    assert calc_rel_mcov([(283, 359), (130, 359), (293, 347)], 1000) == 0.23
 
 
 # ----------------------------------------------------------------------------
@@ -181,6 +182,7 @@ def calc_ani(blast_out: str, sizes: Dict[str, int]):
     # Iterate through each query in BLAST output
     for query in NCBIXML.parse(open(blast_out, 'rt')):
 
+        query_id = query.query.split(" ")[0]
         percent_ids = []
         align_lengths = []
         positions = []
@@ -188,12 +190,9 @@ def calc_ani(blast_out: str, sizes: Dict[str, int]):
         # Iterate through each alignment in query
         for align_num, alignment in enumerate(query.alignments, start=1):
 
-            # Only first alignment retains original record ID
-            if align_num == 1:
-                query_id = alignment.title.split(" ")[0]
-
             # Check that alignment is below e-value threshold, and gather stats
             for hsp in alignment.hsps:
+
                 if hsp.expect <= e_thresh:
                     align_length = hsp.align_length
                     align_lengths.append(align_length)
@@ -309,7 +308,7 @@ def main():
     out_file.close()
 
     # for wrapper:
-    sys.stderr.write("DONE!")
+    sys.stderr.write("DONE!\n")
 
 
 # ----------------------------------------------------------------------------

@@ -215,17 +215,47 @@ def calc_ani(blast_out: str, sizes: Dict[str, int]):
         align_id = calc_align_id(percent_ids, align_lengths)
         rel_mcov = calc_rel_mcov(positions, sizes[query_id])
 
-        ani = align_id * rel_mcov * 100
-
-        ani_thresh = 1.7
-
-        classification = "phage" if ani > ani_thresh else "negative"
-
-        results[query_id] = ANI_results(query_id, round(ani, 3),
-                                        round(rel_mcov * 100, 3), align_num,
-                                        classification, sizes[query_id])
+        results[query_id] = summarize_results(query_id, align_id, rel_mcov,
+                                              align_num, sizes[query_id])
 
     return results
+
+
+# ----------------------------------------------------------------------------
+def summarize_results(q_id: str, align_id: float, rel_mcov: float, hits: int,
+                      size: int) -> ANI_results:
+    """ Summarize query results """
+
+    # Experimentally optimized threshold
+    ANI_THRESH = 1.7
+
+    ani = align_id * rel_mcov * 100
+
+    classification = "phage" if ani > ANI_THRESH else "negative"
+
+    return ANI_results(q_id, round(ani, 3), round(rel_mcov * 100, 3), hits,
+                       classification, size)
+
+
+# ----------------------------------------------------------------------------
+def test_summarize_results() -> None:
+    """ Test summarizing function """
+
+    # Far over ANI threshold
+    result1 = ANI_results('CZMN', 25., 50., 4, "phage", 500)
+    assert summarize_results('CZMN', 0.5, 0.5, 4, 500) == result1
+
+    # Just under ANI threshold
+    result2 = ANI_results('PDFB', 1.6, 10., 1, "negative", 500)
+    assert summarize_results('PDFB', 0.16, 0.1, 1, 500) == result2
+
+    # Just at ANI threshold
+    result3 = ANI_results('ARFS', 1.7, 10., 1, "phage", 500)
+    assert summarize_results('ARFS', 0.17, 0.1, 1, 500) == result3
+
+    # Check rounding
+    result4 = ANI_results('ADFB', 15.665, 47., 3, "phage", 500)
+    assert summarize_results('ADFB', 0.3333, 0.47, 3, 500) == result4
 
 
 # ----------------------------------------------------------------------------

@@ -114,3 +114,7 @@ MetaPhinder uses pytest to ensure that it works as intended. To run the test sui
 ```
 python3 -m pip install pylint flake8==3.9.2 pytest-flake8 pylint pytest-pylint mypy pytest-mypy
 ```
+
+Run the full test suite:
+```
+$ make test

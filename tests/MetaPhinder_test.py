@@ -83,10 +83,22 @@ def test_bad_blast() -> None:
     """ Dies when no BLAST found """
 
     bad = random_string()
+    out_dir = "out_test"
+    out_file1 = os.path.join(out_dir, 'blast.out')
+    out_file2 = os.path.join(out_dir, 'output.txt')
 
-    rv, out = getstatusoutput(f'{RUN} -i {INPUT1} -b {bad} -d {DB}')
+    if os.path.isdir(out_dir):
+        shutil.rmtree(out_dir)
+
+    rv, out = getstatusoutput(
+        f'{RUN} -i {INPUT1} -b {bad} -d {DB} -o {out_dir}')
     assert rv != 0
-    assert re.search(f"{bad}/blastn: not found", out)
+    assert re.search(f'BLAST not found on --blast path "{bad}".', out)
+
+    for file in [out_file1, out_file2]:
+        assert not os.path.isfile(file)
+    if os.path.isdir(out_dir):
+        shutil.rmtree(out_dir)
 
 
 # --------------------------------------------------
@@ -94,10 +106,22 @@ def test_bad_db() -> None:
     """ Dies when bad database is given """
 
     bad = random_string()
+    out_dir = "out_test"
+    out_file1 = os.path.join(out_dir, 'blast.out')
+    out_file2 = os.path.join(out_dir, 'output.txt')
 
-    rv, out = getstatusoutput(f'{RUN} -i {INPUT1} -b {BLAST} -d {bad}')
+    if os.path.isdir(out_dir):
+        shutil.rmtree(out_dir)
+
+    rv, out = getstatusoutput(
+        f'{RUN} -i {INPUT1} -b {BLAST} -d {bad} -o {out_dir}')
     assert rv != 0
-    assert re.search(f'"{bad}" is not a valid database', out)
+    assert re.search('BLAST Database error', out)
+
+    for file in [out_file1, out_file2]:
+        assert not os.path.isfile(file)
+    if os.path.isdir(out_dir):
+        shutil.rmtree(out_dir)
 
 
 # --------------------------------------------------

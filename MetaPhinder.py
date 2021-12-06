@@ -7,6 +7,7 @@ Purpose: Classify metagenomic contigs as phage or not
 from __future__ import division
 from Bio import SeqIO
 from Bio.Blast import NCBIXML
+from subprocess import getstatusoutput
 from typing import Dict, TextIO, Tuple, List, NamedTuple
 import argparse
 import numpy as np
@@ -71,6 +72,13 @@ def get_args() -> Args:
                         default='.')
 
     args = parser.parse_args()
+
+    rv, blast_path = getstatusoutput(f'which {args.blast}/blastn')
+
+    if rv != 0:
+        parser.error(f'BLAST not found on --blast path "{args.blast}".')
+
+    args.blast = blast_path
 
     return Args(args.infile, args.database, args.blast, args.outpath)
 
@@ -274,19 +282,27 @@ def main():
     args = get_args()
     contig_file = args.infile
     blast_db = args.database
-    blast_path = args.blast
+    blast = args.blast
     out_path = args.outpath
+
+    if not os.path.isdir(out_path):
+        os.makedirs(out_path)
 
     sizes = get_contig_size(contig_file)
 
     print("running BLAST...")
 
-    blast = os.path.join(blast_path, 'blastn')
     blast_out = os.path.join(out_path, 'blast.out')
 
-    os.system(f"{blast} -query {contig_file.name} -task blastn " +
-              f"-evalue 0.05 -outfmt 5 -num_threads 4 -db {blast_db} " +
-              f"-out {blast_out}")
+    rv, out = getstatusoutput(
+        f"{blast} -query {contig_file.name} -task blastn " +
+        f"-evalue 0.05 -outfmt 5 -num_threads 4 -db {blast_db} " +
+        f"-out {blast_out}")
+
+    if rv != 0:
+        if os.path.isfile(blast_out):
+            os.remove(blast_out)
+        sys.exit(out)
 
     print("calculating ANI...")
 

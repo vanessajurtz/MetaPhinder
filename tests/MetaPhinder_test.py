@@ -11,7 +11,7 @@ import string
 PRG = './MetaPhinder.py'
 RUN = 'python3 MetaPhinder.py' if platform.system() == 'Windows' else PRG
 INPUT1 = './tests/inputs/input1.fa'
-INPUT2 = './tests/inputs/input3.fa'
+INPUT2 = './tests/inputs/input2.fa'
 DB = 'database/ALL_140821_hr'
 BLAST = './env/bin'
 

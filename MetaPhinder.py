@@ -14,8 +14,7 @@ import numpy as np
 import os
 import sys
 
-# pylint: disable=unspecified-encoding,consider-using-enumerate
-# pylint: disable=too-many-branches
+# pylint: disable=unspecified-encoding
 
 
 # ----------------------------------------------------------------------------
@@ -381,7 +380,7 @@ def main():
     out_file.close()
 
     # for wrapper:
-    sys.stderr.write("DONE!\n")
+    print("DONE!")
 
 
 # ----------------------------------------------------------------------------

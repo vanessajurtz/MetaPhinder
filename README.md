@@ -84,16 +84,16 @@ Two files are generated, `blast.out` and `output.txt`.
 
 ```
 $ head output.txt
-#contigID       classification  ANI [%] merged coverage [%]     number of hits  size[bp]
-NC_003714       phage   98.991  99.966  4       2948
-AB091475        phage   91.533  99.969  9       3254
-12021.1 phage   87.461  99.971  10      3486
-NC_001628       phage   99.272  99.972  3       3588
-NC_004175       phage   88.066  99.976  3       4100
-NC_001890       phage   81.272  99.976  9       4215
-FJ539134        phage   80.908  99.977  7       4273
-NC_003438       phage   99.54   99.977  5       4421
-NC_001741       phage   94.39   99.979  3       4877
+#contig_ids     classification  ANI [%] merged coverage [%]     number of hits  size[bp]
+NC_003714       phage   99.024  100.0   4       2948
+AB091475        phage   91.561  100.0   9       3254
+12021.1 phage   87.486  100.0   10      3486
+NC_001628       phage   99.299  100.0   3       3588
+NC_004175       phage   88.087  100.0   3       4100
+NC_001890       phage   81.291  100.0   9       4215
+FJ539134        phage   80.927  100.0   7       4273
+NC_003438       phage   99.563  100.0   5       4421
+NC_001741       phage   94.409  100.0   3       4877
 ```
 
 The columns of the output file are:

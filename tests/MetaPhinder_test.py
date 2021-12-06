@@ -83,7 +83,7 @@ def test_bad_blast() -> None:
     """ Dies when no BLAST found """
 
     bad = random_string()
-    out_dir = "out_test"
+    out_dir = random_string()
     out_file1 = os.path.join(out_dir, 'blast.out')
     out_file2 = os.path.join(out_dir, 'output.txt')
 
@@ -106,7 +106,7 @@ def test_bad_db() -> None:
     """ Dies when bad database is given """
 
     bad = random_string()
-    out_dir = "out_test"
+    out_dir = random_string()
     out_file1 = os.path.join(out_dir, 'blast.out')
     out_file2 = os.path.join(out_dir, 'output.txt')
 
@@ -128,14 +128,12 @@ def test_bad_db() -> None:
 def test_runs_ok() -> None:
     """ Runs with good inputs """
 
-    out_dir = "out_test"
+    out_dir = random_string()
 
     for in_file in [INPUT1, INPUT2]:
         try:
             if os.path.isdir(out_dir):
                 shutil.rmtree(out_dir)
-
-            os.makedirs(out_dir)
 
             rv, out = getstatusoutput(
                 f'{RUN} -i {in_file} -b {BLAST} -d {DB} -o {out_dir}')

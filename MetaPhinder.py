@@ -73,8 +73,10 @@ def get_args() -> Args:
 
     args = parser.parse_args()
 
+    # Check if blastn can be found at provided path
     rv, blast_path = getstatusoutput(f'which {args.blast}/blastn')
 
+    # If blastn was not found, exit
     if rv != 0:
         parser.error(f'BLAST not found on --blast path "{args.blast}".')
 
@@ -87,6 +89,7 @@ def get_args() -> Args:
 def get_contig_size(contig_file: TextIO) -> Dict[str, int]:
     """ Calculate contig lengths """
 
+    # Dictionary of contig_id: size (bp)
     sizes: Dict[str, int] = {}
 
     for rec in SeqIO.parse(contig_file, 'fasta'):
@@ -141,17 +144,28 @@ def calc_rel_mcov(positions: List[Tuple[int, int]], gsize: int) -> float:
     rel_mcov = 0.
     coverages = [(0, 0)]
 
+    # Iterate through all regions with hits
     for (start, end) in sorted(positions):
+
+        # Check if current hit region overlaps a previous one
         overlapping = [
             cov_start <= start <= cov_end for (cov_start, cov_end) in coverages
         ]
+
+        # If there is overlap, merge the regions
         if any(overlapping):
+
+            # Get index of previous region that has overlap with current
             i = int(np.where(overlapping)[0])
             (cov_start, cov_end) = coverages[i]
+
+            # Expand coverage region end position
             coverages[i] = (cov_start, max(end, cov_end))
         else:
+            # If no overlap, just add the current hit region
             coverages.append((start, end))
 
+    # Calculate portion of total sequence size that has hit coverage
     rel_mcov = sum([end - (start - 1) for start, end in coverages[1:]]) / gsize
 
     return rel_mcov
@@ -179,13 +193,15 @@ def test_calc_rel_mcov() -> None:
 
 
 # ----------------------------------------------------------------------------
-def calc_ani(blast_out: str, sizes: Dict[str, int]):
-    """ Calculate ANI from BLAST results"""
+def classify_contigs(blast_out: str, sizes: Dict[str, int]):
+    """ Classify contigs based on BLAST results """
 
-    results: Dict[str, ANI_results] = {}  # results
+    # Dictionary of classification results
+    results: Dict[str, ANI_results] = {}
     align_num = 0
 
-    e_thresh = 0.05
+    # E-value threshold for BLAST output
+    E_THRESH = 0.05
 
     # Iterate through each query in BLAST output
     for query in NCBIXML.parse(open(blast_out, 'rt')):
@@ -201,7 +217,7 @@ def calc_ani(blast_out: str, sizes: Dict[str, int]):
             # Check that alignment is below e-value threshold, and gather stats
             for hsp in alignment.hsps:
 
-                if hsp.expect <= e_thresh:
+                if hsp.expect <= E_THRESH:
                     align_length = hsp.align_length
                     align_lengths.append(align_length)
 
@@ -212,9 +228,11 @@ def calc_ani(blast_out: str, sizes: Dict[str, int]):
                     end = hsp.query_end
                     positions.append((min(start, end), max(start, end)))
 
+        # Calculate alignment identity and relative merged coverage
         align_id = calc_align_id(percent_ids, align_lengths)
         rel_mcov = calc_rel_mcov(positions, sizes[query_id])
 
+        # Calculate ANI, classify, and summarize results
         results[query_id] = summarize_results(query_id, align_id, rel_mcov,
                                               align_num, sizes[query_id])
 
@@ -229,6 +247,7 @@ def summarize_results(q_id: str, align_id: float, rel_mcov: float, hits: int,
     # Experimentally optimized threshold
     ANI_THRESH = 1.7
 
+    # Calculate average nucleotide identity (ANI)
     ani = align_id * rel_mcov * 100
 
     classification = "phage" if ani > ANI_THRESH else "negative"
@@ -265,9 +284,11 @@ def get_out_str(result: ANI_results, contig_id: str, size: int) -> str:
     out_str = ""
 
     if int(size) < 500:
+        # Do not classify contigs under 500 nt
         out_str = (f'{contig_id}\tnot processed\tnot processed\t'
                    f'not processed\tnot processed\t{str(size)}\n')
     elif result:
+        # Hits were found, build output string
         ani = result.ani
         coverage = result.coverage
         hits = result.hits
@@ -276,6 +297,7 @@ def get_out_str(result: ANI_results, contig_id: str, size: int) -> str:
         out_str = (f'{contig_id}\t{classification}\t{ani}\t' +
                    f'{coverage}\t{hits}\t{str(size)}\n')
     else:
+        # No hits were found
         out_str = (f'{contig_id}\tnegative\t0\t0\t0\t{str(size)}\n')
 
     return out_str
@@ -315,20 +337,25 @@ def main():
     blast = args.blast
     out_path = args.outpath
 
+    # Create output directory if it is not present
     if not os.path.isdir(out_path):
         os.makedirs(out_path)
 
+    # Get sizes of each contig in the file
     sizes = get_contig_size(contig_file)
 
     print("running BLAST...")
 
     blast_out = os.path.join(out_path, 'blast.out')
 
+    # Attempt to run blast, collect exit status and output value
     rv, out = getstatusoutput(
         f"{blast} -query {contig_file.name} -task blastn " +
         f"-evalue 0.05 -outfmt 5 -num_threads 4 -db {blast_db} " +
         f"-out {blast_out}")
 
+    # If BLAST gave non-zero exit status, print the output,
+    #    remove the (empty) blast output file, and exit
     if rv != 0:
         if os.path.isfile(blast_out):
             os.remove(blast_out)
@@ -336,7 +363,8 @@ def main():
 
     print("calculating ANI...")
 
-    res = calc_ani(blast_out, sizes)
+    # Perform ANI calculation and classification
+    results = classify_contigs(blast_out, sizes)
 
     out_file_name = os.path.join(out_path, 'output.txt')
     out_file = open(out_file_name, "w")
@@ -344,13 +372,12 @@ def main():
     out_file.write("#contig_ids\tclassification\tANI [%]\t"
                    "merged coverage [%]\tnumber of hits\tsize[bp]\n")
 
+    # Generate output
     for contig_id, size in sizes.items():
-
-        result = res.get(contig_id)
-
+        result = results.get(contig_id)
         out_str = get_out_str(result, contig_id, size)
-
         out_file.write(out_str)
+
     out_file.close()
 
     # for wrapper:
